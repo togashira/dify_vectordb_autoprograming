@@ -104,6 +104,8 @@ docker compose down -v
 - Secrets/SSM/KMS、NATレス運用（VPCエンドポイント）
 - 監視・ログ（CloudWatch Logs）、トラブル対応（ターゲットヘルス/ルール）
 
+詳細手順は `AWS_DEPLOY_BEDROCK.md` を参照（Bedrock Titan v2 Embeddings + Claude 2、NATレス運用）。
+
 ## 6. ライセンス
 
 ## 8. Cursor を使って「ぎゃるでれら」を作る
