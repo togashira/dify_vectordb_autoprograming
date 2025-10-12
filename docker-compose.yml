@@ -1,0 +1,71 @@
+version: "3.9"
+
+services:
+  reverse-proxy:
+    image: nginx:1.25-alpine
+    ports:
+      - "${HOST_PORT:-8080}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - dify-web
+      - dify-api
+
+  dify-web:
+    image: docker.io/langgenius/dify-web:latest
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:${HOST_PORT:-8080}/console/api
+    entrypoint: ["/bin/sh","/entrypoint.sh"]
+    volumes:
+      - ./web-entrypoint.sh:/entrypoint.sh:ro
+    depends_on:
+      - dify-api
+
+  dify-api:
+    image: docker.io/langgenius/dify-api:latest
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - SECRET_KEY=${SECRET_KEY}
+      - CONSOLE_URL=${CONSOLE_URL}
+      - APP_URL=${APP_URL}
+      - FLASK_APP=app.py
+      - MODE=api
+    depends_on:
+      - db
+      - redis
+
+  dify-worker:
+    image: docker.io/langgenius/dify-api:latest
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - SECRET_KEY=${SECRET_KEY}
+      - CONSOLE_URL=${CONSOLE_URL}
+      - APP_URL=${APP_URL}
+      - FLASK_APP=app.py
+      - MODE=worker
+    depends_on:
+      - db
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server","--appendonly","yes"]
+    volumes:
+      - redis-data:/data
+
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+
+volumes:
+  pg-data: {}
+  redis-data: {}
