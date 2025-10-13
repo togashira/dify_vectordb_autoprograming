@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   reverse-proxy:
     image: nginx:1.25-alpine
@@ -12,44 +10,89 @@ services:
       - dify-api
 
   dify-web:
-    image: docker.io/langgenius/dify-web:latest
+    image: docker.io/langgenius/dify-web:0.11.1
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:${HOST_PORT:-8080}/console/api
-    entrypoint: ["/bin/sh","/entrypoint.sh"]
-    volumes:
-      - ./web-entrypoint.sh:/entrypoint.sh:ro
+      - CONSOLE_API_URL=http://localhost:${HOST_PORT:-8080}
+      - APP_API_URL=http://localhost:${HOST_PORT:-8080}
+      - MARKETPLACE_API_URL=https://marketplace.dify.ai
+      - MARKETPLACE_URL=https://marketplace.dify.ai
     depends_on:
       - dify-api
 
   dify-api:
-    image: docker.io/langgenius/dify-api:latest
+    image: docker.io/langgenius/dify-api:0.11.1
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-dify}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-dify}
+      - SQLALCHEMY_DATABASE_URI=postgresql://${POSTGRES_USER:-dify}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-dify}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=${POSTGRES_USER:-dify}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - DB_DATABASE=${POSTGRES_DB:-dify}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - SECRET_KEY=${SECRET_KEY}
-      - CONSOLE_URL=${CONSOLE_URL}
-      - APP_URL=${APP_URL}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - SECRET_KEY=${SECRET_KEY:-sk-9f73s3ljTXVcMT3Blb3ljTqtsKiGHXVcMT3BlbkFJLK7U}
+      - CONSOLE_URL=${CONSOLE_URL:-http://localhost:8080}
+      - APP_URL=${APP_URL:-http://localhost:8080}
       - FLASK_APP=app.py
       - MODE=api
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_PATH=/app/storage
+      - PLUGIN_ENABLED=false
+      - DISABLE_PLUGIN_MANAGER=true
+      - VECTOR_STORE=pgvector
+      - PGVECTOR_HOST=db
+      - PGVECTOR_PORT=5432
+      - PGVECTOR_USER=${POSTGRES_USER:-dify}
+      - PGVECTOR_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - PGVECTOR_DATABASE=${POSTGRES_DB:-dify}
+    volumes:
+      - storage-data:/app/storage
     depends_on:
       - db
       - redis
 
   dify-worker:
-    image: docker.io/langgenius/dify-api:latest
+    image: docker.io/langgenius/dify-api:0.11.1
+    entrypoint: []
+    command: ["/bin/bash", "-c", "cd /app/api && celery -A app.celery worker -P gevent -c 1 --loglevel INFO -Q dataset,generation,mail,ops_trace"]
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-dify}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-dify}
+      - SQLALCHEMY_DATABASE_URI=postgresql://${POSTGRES_USER:-dify}:${POSTGRES_PASSWORD:-changeme}@db:5432/${POSTGRES_DB:-dify}
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=${POSTGRES_USER:-dify}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - DB_DATABASE=${POSTGRES_DB:-dify}
       - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/1
-      - SECRET_KEY=${SECRET_KEY}
-      - CONSOLE_URL=${CONSOLE_URL}
-      - APP_URL=${APP_URL}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - SECRET_KEY=${SECRET_KEY:-sk-9f73s3ljTXVcMT3Blb3ljTqtsKiGHXVcMT3BlbkFJLK7U}
+      - CONSOLE_URL=${CONSOLE_URL:-http://localhost:8080}
+      - APP_URL=${APP_URL:-http://localhost:8080}
       - FLASK_APP=app.py
       - MODE=worker
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_PATH=/app/storage
+      - PLUGIN_ENABLED=false
+      - DISABLE_PLUGIN_MANAGER=true
+      - VECTOR_STORE=pgvector
+      - PGVECTOR_HOST=db
+      - PGVECTOR_PORT=5432
+      - PGVECTOR_USER=${POSTGRES_USER:-dify}
+      - PGVECTOR_PASSWORD=${POSTGRES_PASSWORD:-changeme}
+      - PGVECTOR_DATABASE=${POSTGRES_DB:-dify}
+    volumes:
+      - storage-data:/app/storage
     depends_on:
       - db
       - redis
+
 
   redis:
     image: redis:7-alpine
@@ -60,12 +103,13 @@ services:
   db:
     image: pgvector/pgvector:pg16
     environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB:-dify}
+      - POSTGRES_USER=${POSTGRES_USER:-dify}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-changeme}
     volumes:
       - pg-data:/var/lib/postgresql/data
 
 volumes:
   pg-data: {}
   redis-data: {}
+  storage-data: {}
