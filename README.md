@@ -298,15 +298,68 @@ curl -s http://localhost:8080/console/api/setup
 docker compose restart
 ```
 
-## 6. アンインストール（データ消去）
+## 6. トラブルシューティング
+
+構築時に問題が発生した場合は、以下のドキュメントを参照してください。
+
+### 📚 トラブルシューティングガイド
+
+#### macOS環境の場合
+- **[macOS環境でのトラブルシューティング](docs/MACOS_TROUBLESHOOTING.md)**
+  - plugin-daemon起動エラー（最頻出）
+  - M1/M2 Macでのアーキテクチャエラー
+  - データベース接続エラー
+  - マイグレーションエラー
+  - ポート競合
+  - Redis接続エラー
+  - ヘルスチェック失敗
+  - 完全リセット手順
+
+#### 構築チェックリスト
+- **[構築手順チェックポイント](docs/SETUP_CHECKLIST.md)**
+  - Phase 1: 事前準備（環境確認、リポジトリクローン）
+  - Phase 2: 初回起動（イメージダウンロード、コンテナ起動、マイグレーション）
+  - Phase 3: 動作確認（Webアクセス、API確認、初期セットアップ）
+  - Phase 4: トラブルシューティング（ログ確認、リソース確認）
+  - Phase 5: 本番運用準備
+
+### よくある問題のクイックガイド
+
+```bash
+# 問題1: plugin-daemon エラー
+# → .envでplugin機能を無効化（既に設定済み）
+grep "PLUGIN_ENABLED=false" .env
+
+# 問題2: データベース接続エラー
+# → パスワード確認とDB再起動
+docker compose down -v
+docker compose up -d
+docker compose exec dify-api flask db upgrade
+
+# 問題3: ポート8080競合
+# → 使用中のプロセス確認
+lsof -i :8080
+
+# 問題4: マイグレーションエラー
+# → マイグレーション再実行
+docker compose exec dify-api flask db upgrade
+
+# 問題5: 全体的な不具合
+# → ログ確認
+docker compose logs -f --tail=100
+```
+
+詳細は上記のドキュメントを参照してください。
+
+## 12. アンインストール（データ消去）
 
 ```bash
 docker compose down -v
 ```
 
-## 7. 重要なナレッジ・ベストプラクティス
+## 12. 重要なナレッジ・ベストプラクティス
 
-### 7.1 バージョン管理（最重要）
+### 8.1 バージョン管理（最重要）
 
 #### ✅ 推奨: 安定版を固定
 ```yaml
@@ -336,7 +389,7 @@ dify-web:
 - ⚠️ **0.12.x以降**: プラグイン機能追加、不安定
 - ❌ **latest**: 本番環境では避ける
 
-### 7.2 プラグイン機能の無効化
+### 8.2 プラグイン機能の無効化
 
 #### プラグインエラーとは？
 ```
@@ -419,7 +472,7 @@ volumes:
 - ドキュメント不足のため、試行錯誤が必要
 - 本番環境では推奨しない
 
-### 7.3 Celery Worker設定の注意点
+### 8.3 Celery Worker設定の注意点
 
 #### 必須設定（0.11.1の既知バグ対応）
 ```yaml
@@ -438,7 +491,7 @@ dify-worker:
 - `-P gevent`: geventプールを使用（推奨）
 - `-c 1`: ワーカープロセス数（必要に応じて調整）
 
-### 7.4 データベース設定の多層化
+### 8.4 データベース設定の多層化
 
 #### 必須: 3種類すべて設定
 ```yaml
@@ -468,7 +521,7 @@ dify-api:
 - `DATABASE_URL`だけ設定 → 接続エラー
 - 個別パラメータだけ設定 → 一部APIが500エラー
 
-### 7.5 Redis設定の明示化
+### 8.5 Redis設定の明示化
 
 #### 推奨設定
 ```yaml
@@ -490,7 +543,7 @@ dify-api:
 - Redis設定なし → ログインできない（500エラー）
 - localhost参照 → コンテナ間通信失敗
 
-### 7.6 ベクトルDB（pgvector）設定
+### 8.6 ベクトルDB（pgvector）設定
 
 #### 必須設定
 ```yaml
@@ -509,7 +562,7 @@ dify-api:
 - PostgreSQLと同じ接続情報を使う
 - 明示的に`pgvector`を指定しないと認識されない
 
-### 7.7 パスワード一致の重要性
+### 8.7 パスワード一致の重要性
 
 #### チェックポイント
 ```bash
@@ -532,7 +585,7 @@ docker compose exec dify-api env | grep POSTGRES_PASSWORD
 docker compose exec db env | grep POSTGRES_PASSWORD
 ```
 
-### 7.8 初回マイグレーション必須
+### 8.8 初回マイグレーション必須
 
 #### 必ず実行
 ```bash
@@ -585,7 +638,7 @@ docker compose logs dify-api --tail=20
 docker compose exec db psql -U dify -d dify -c "SELECT 1;"
 ```
 
-### 7.9 バージョンアップ時の安全な手順
+### 8.9 バージョンアップ時の安全な手順
 
 ```bash
 # 1. バックアップ（必須）
@@ -612,7 +665,7 @@ docker compose logs dify-api --tail=50
 - 必ずバックアップを取る
 - 可能ならテスト環境で先に試す
 
-### 7.10 セキュリティ対策
+### 8.10 セキュリティ対策
 
 #### 本番環境では必ず実施
 
@@ -638,7 +691,7 @@ chmod 600 .env
 OPENAI_API_KEY=sk-xxx...
 ```
 
-### 7.11 モニタリング・デバッグ
+### 8.11 モニタリング・デバッグ
 
 #### ログ確認
 ```bash
@@ -670,7 +723,7 @@ docker compose exec dify-api python -c "from extensions.ext_database import db; 
 docker compose exec db psql -U dify -d dify -c "SELECT COUNT(*) FROM accounts;"
 ```
 
-### 7.12 バックアップ戦略
+### 8.12 バックアップ戦略
 
 #### データベースバックアップ
 ```bash
@@ -690,7 +743,7 @@ docker run --rm -v dify_vectordb_autoprograming_pg-data:/data -v $(pwd):/backup 
 docker run --rm -v dify_vectordb_autoprograming_storage-data:/data -v $(pwd):/backup alpine tar czf /backup/storage-backup.tar.gz /data
 ```
 
-### 7.13 トラブルシューティングチェックリスト
+### 8.13 トラブルシューティングチェックリスト
 
 #### 問題: 500 Internal Server Error
 ```bash
@@ -799,7 +852,7 @@ docker compose exec dify-api flask db upgrade
 - ✅ エラーが発生しない
 - ❌ 0.12.x以降: プラグイン機能追加、`plugin-daemon`サービスが必要、ドキュメント不足、不安定
 
-## 8. チェックリスト（保存版）
+## 12. チェックリスト（保存版）
 
 ### 初回セットアップ時
 - [ ] バージョンを固定（0.11.1など、latest禁止）
@@ -822,7 +875,7 @@ docker compose exec dify-api flask db upgrade
 - [ ] コンテナ再起動（`docker compose restart`）
 - [ ] 完全リセット（最終手段: `docker compose down -v`）
 
-## 9. 次のステップ（AWS で公開運用）
+## 12. 次のステップ（AWS で公開運用）
 
 ローカルでの体験後は、AWS（ECS Fargate + RDS pgvector + ElastiCache + ALB + HTTPS）へ展開して公開運用が可能です。講座の後半で、以下を扱います。
 - コンテナのECRミラー、タスク定義（api/web/worker）
@@ -832,12 +885,12 @@ docker compose exec dify-api flask db upgrade
 
 詳細手順は `AWS_DEPLOY_BEDROCK.md` を参照（Bedrock Titan v2 Embeddings + Claude 2、NATレス運用）。
 
-## 10. Cursor を使って「ぎゃるでれら」を作る
+## 12. Cursor を使って「ぎゃるでれら」を作る
 
 以下の指示書を Cursor に読み込ませて、短時間でキャラクターAIを作れます。
 - `cursor/INSTRUCTIONS_GYARU_CINDERELLA.md`
 - アップロード用サンプル: `samples/gyaru_cinderella_profile.md`
 
-## 11. ライセンス
+## 12. ライセンス
 
 このテンプレート自体は MIT ライセンス（必要に応じて変更可）。Dify本体のライセンスは公式に従います。
